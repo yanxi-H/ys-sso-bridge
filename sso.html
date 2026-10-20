@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>正在打开 YS 单据…</title>
+<style>
+  body { font-family: -apple-system, "PingFang SC", sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f7f8fa; color: #333; }
+  .box { text-align: center; }
+  .spin { width: 36px; height: 36px; border: 4px solid #e3e5e8; border-top-color: #2e6be6; border-radius: 50%; animation: r 0.9s linear infinite; margin: 0 auto 16px; }
+  @keyframes r { to { transform: rotate(360deg); } }
+  .err { color: #c0392b; }
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="spin"></div>
+  <div id="msg">正在免登进入 YS 单据…</div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/dingtalk-jsapi@3.2.9/dist/dingtalk-jsapi.js"></script>
+<script>
+(function () {
+  var params = new URLSearchParams(location.search);
+  var target = params.get("target") || "";
+  var msg = document.getElementById("msg");
+  if (!target) { msg.textContent = "缺少 target 参数"; msg.className = "err"; return; }
+
+  function go(code) {
+    // 免登码交给 YS 单点服务(ssoBip)换会话后落目标表单
+    location.href = "https://c3.yonyoucloud.com/iuap-ipaas-sso/auth/ssoBip?code=" +
+      encodeURIComponent(code) + "&state=" + encodeURIComponent(target);
+  }
+  function fail(err) {
+    msg.textContent = "免登取码失败: " + (err && (err.errMsg || err.message) || err);
+    msg.className = "err";
+    // 兜底:直接跳目标(带 YS 会话则直达,无会话落登录页)
+    setTimeout(function () { location.href = target; }, 1200);
+  }
+
+  var dd = window.dd || window.DingTalk;
+  if (!dd || typeof dd.getAuthCode !== "function") { fail("dingtalk-jsapi 未加载/不在钉钉内"); return; }
+  // 兼容回调式与 Promise 式
+  try {
+    var r = dd.getAuthCode({
+      onSuccess: function (res) { go(res.code); },
+      onFail: fail
+    });
+    if (r && typeof r.then === "function") {
+      r.then(function (res) { go(res.code); }).catch(fail);
+    }
+  } catch (e) { fail(e); }
+})();
+</script>
+</body>
+</html>
